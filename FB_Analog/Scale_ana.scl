@@ -1,0 +1,120 @@
+﻿FUNCTION_BLOCK "Scale_ana"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Enable : Bool;
+      Raw_I : Int;
+      RawMax_I : Int := 27648;
+      RawMin_I : Int;
+      PerMax_I : Real := 100.0;
+      PerMin_I : Real := 0.0;
+      Reset : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      Current_A : Real;
+      OverCurrent : Bool;
+      UnderCurrent : Bool;
+      ConfigFault : Bool;
+      Fault : Bool;
+   END_VAR
+
+   VAR 
+      Time_check_1 {InstructionName := 'TON_TIME'; LibVersion := '1.0'; S7_SetPoint := 'False'} : TON_TIME;
+      Time_check_2 {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      RawSpan_I : DInt;
+      PerSpan_I : Real;
+      I : Real;
+      RawOverRange : Bool;
+      RawUnderRange : Bool;
+   END_VAR
+
+
+BEGIN
+	// 1. Configuration check
+	#RawSpan_I := #RawMax_I - #RawMin_I;
+	#PerSpan_I := #PerMax_I - #PerMin_I;
+	
+	#ConfigFault := (#RawSpan_I <= 0) OR (#PerSpan_I <= 0);
+	
+	// 2. Raw range detection
+	#RawUnderRange := #Raw_I < #RawMin_I;
+	#RawOverRange := #Raw_I > #RawMax_I;
+	
+	// 3. Fault qualification timers
+	#Time_check_1(
+	    IN := #Enable AND NOT #ConfigFault AND #RawUnderRange,
+	    PT := T#1s
+	);
+	
+	#Time_check_2(
+	    IN := #Enable AND NOT #ConfigFault AND #RawOverRange,
+	    PT := T#1s
+	);
+	
+	// 4. Alarm latch and reset
+	IF #Enable AND NOT #ConfigFault THEN
+	    IF #Time_check_1.Q THEN
+	        #UnderCurrent := TRUE;
+	    END_IF;
+	    
+	    IF #Time_check_2.Q THEN
+	        #OverCurrent := TRUE;
+	    END_IF;
+	END_IF;
+	
+	IF #Reset THEN
+	    IF NOT #RawUnderRange THEN
+	        #UnderCurrent := FALSE;
+	    END_IF;
+	    
+	    IF NOT #RawOverRange THEN
+	        #OverCurrent := FALSE;
+	    END_IF;
+	END_IF;
+	
+	// 5. Scale
+	IF #Enable
+	    AND NOT #ConfigFault
+	    AND NOT #UnderCurrent
+	    AND NOT #OverCurrent
+	    AND NOT #RawUnderRange
+	    AND NOT #RawOverRange THEN
+	    
+	    #I := (INT_TO_REAL(#Raw_I - #RawMin_I)
+	    / DINT_TO_REAL(#RawSpan_I))
+	    * #PerSpan_I + #PerMin_I;
+	    
+	    IF #I < #PerMin_I THEN
+	        #I := #PerMin_I;
+	    ELSIF #I > #PerMax_I THEN
+	        #I := #PerMax_I;
+	    END_IF;
+	    
+	    #Current_A := #I;
+	END_IF;
+	
+	// 6. Overall fault
+	#Fault := #ConfigFault OR #UnderCurrent OR #OverCurrent;
+	        
+	    
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	   
+END_FUNCTION_BLOCK
+

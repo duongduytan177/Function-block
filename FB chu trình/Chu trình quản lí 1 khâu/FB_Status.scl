@@ -45,7 +45,7 @@ BEGIN
 	              PT := T#24H);
 	#stStatus.StateTime := #tonStateTime.ET;
 	
-	// -------------------- Enable / Fault handling --------------------
+	// Enable / Fault handling
 	IF NOT #Enable THEN
 	    #State := #status.Idle;
 	    #NextState := #status.Idle;
@@ -55,7 +55,7 @@ BEGIN
 	    #tonStateTime(IN := FALSE, PT:=#StartTimeOut );
 	    
 	ELSE
-	    // latch external fault
+	    // external fault
 	    IF #ExternalFault THEN
 	        #FaultLatched := TRUE;
 	        #FaultCode := 3; // 3 = external fault (umownie)
@@ -75,9 +75,10 @@ BEGIN
 	        #NextState := #status.Error;
 	    END_IF;
 	    
-	    // -------------------- AUTO / MANUAL --------------------
+	    // AUTO / MANUAL 
 	    IF #AutoMode THEN
 	        CASE #State OF
+				// trạng thái nghỉ
 	            0 :
 	                IF NOT #StateInit THEN
 	                    #StateInit := TRUE;
@@ -95,6 +96,7 @@ BEGIN
 	                        #NextState := #status.Error;
 	                    END_IF;
 	                END_IF;
+				// trạng thái khởi động 
 	            10:
 	                #DoStart := TRUE;
 	                
@@ -118,6 +120,7 @@ BEGIN
 	                    #NextState := #status.Stopping;
 	                END_IF;
 	                #stStatus.StateName := 'STARTING';
+				// trạng thái chạy
 	            20:
 	                #DoStart := TRUE;
 	                
@@ -137,6 +140,7 @@ BEGIN
 	                    #NextState := #status.Stopping;
 	                END_IF;
 	                #stStatus.StateName := 'RUNNING';
+				//trạng thái dừng
 	            30:
 	                #DoStop := TRUE;
 	                
@@ -156,6 +160,7 @@ BEGIN
 	                    #NextState := #status.Error;
 	                END_IF;
 	                #stStatus.StateName := 'STOPING';
+				// lỗi
 	            100:
 	                #DoStart := FALSE;
 	                #DoStop := TRUE;
